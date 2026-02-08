@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../api";
+import { motion } from "framer-motion";
 
 function ImpactNumbers() {
   const [numbers, setNumbers] = useState({
@@ -10,28 +11,39 @@ function ImpactNumbers() {
   });
 
   useEffect(() => {
-    API.get("/heritage/stats/numbers/").then(res => setNumbers(res.data));
+    API.get("/heritage/stats/numbers/")
+      .then(res => setNumbers(res.data))
+      .catch(err => console.error(err));
   }, []);
 
-  // Use format with "+" for numbers
+  const stats = [
+    { label: "Heritage Sites", value: numbers.heritage_sites_preserved, color: "text-orange-500" },
+    { label: "Artisans", value: numbers.artisans_registered, color: "text-purple-500" },
+    { label: "Community", value: numbers.tourists_registered + numbers.researchers_registered, color: "text-blue-500" },
+    { label: "Events", value: numbers.events, color: "text-pink-500" },
+  ];
+
   return (
-    <section className="py-12 bg-white">
-      <div className="flex flex-wrap justify-center items-center gap-16 mb-6">
-        <div className="text-center">
-          <div className="text-4xl font-extrabold text-orange-600">{numbers.heritage_sites_preserved}+ </div>
-          <div className="mt-2 text-gray-700 font-medium">Heritage Sites</div>
-        </div>
-        <div className="text-center">
-          <div className="text-4xl font-extrabold text-purple-600">{numbers.artisans_registered}+ </div>
-          <div className="mt-2 text-gray-700 font-medium">Verified Artisans</div>
-        </div>
-        <div className="text-center">
-          <div className="text-4xl font-extrabold text-green-600">{numbers.tourists_registered + numbers.researchers_registered}+ </div>
-          <div className="mt-2 text-gray-700 font-medium">Community Members</div>
-        </div>
-        <div className="text-center">
-          <div className="text-4xl font-extrabold text-red-600">{numbers.events}+ </div>
-          <div className="mt-2 text-gray-700 font-medium">Events</div>
+    <section className="py-20 bg-white border-t border-gray-100">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          {stats.map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="text-center p-6 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-lg transition-all duration-300"
+            >
+              <div className={`text-4xl md:text-5xl font-extrabold ${stat.color} mb-2 font-display`}>
+                {stat.value}+
+              </div>
+              <div className="text-gray-600 font-medium uppercase tracking-wide text-xs md:text-sm">
+                {stat.label}
+              </div>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>

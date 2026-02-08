@@ -1,0 +1,14 @@
+*.pyc
+__pycache__
+.git
+.gitignore
+.env
+.venv
+db.sqlite3
+*.pem
+.DS_Store
+node_modules
+/media
+/staticfiles
+.dockerignore
+Dockerfile

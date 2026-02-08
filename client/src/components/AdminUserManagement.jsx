@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../api";
-import { CheckCircleIcon, XCircleIcon, SearchIcon } from "@heroicons/react/solid";
+import { FiCheckCircle, FiXCircle, FiSearch, FiTrash2, FiFileText } from "react-icons/fi";
 
 export default function AdminUserManagement() {
   const [allUsers, setAllUsers] = useState([]);
@@ -15,7 +15,6 @@ export default function AdminUserManagement() {
         setAllUsers(usersRes.data);
       } catch (err) {
         setError("Failed to load users.");
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -32,23 +31,16 @@ export default function AdminUserManagement() {
       );
     } catch (err) {
       alert("Failed to verify user.");
-      console.error(err);
     }
   }
 
   async function handleDeleteUser(username) {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this user? This action cannot be undone."
-      )
-    )
-      return;
+    if (!window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
     try {
       await API.delete(`/users/${username}/delete/`);
       setAllUsers((prev) => prev.filter((u) => u.username !== username));
     } catch (err) {
       alert("Failed to delete user.");
-      console.error(err);
     }
   }
 
@@ -59,109 +51,118 @@ export default function AdminUserManagement() {
       u.role.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <p>Loading users...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
+  if (loading) return <div className="text-center py-10 text-gray-500">Loading users...</div>;
+  if (error) return <div className="text-center py-10 text-red-600 font-bold">{error}</div>;
 
   return (
-    <section>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">All Users</h2>
-        <div className="relative w-72">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">User Management</h2>
+          <p className="text-gray-500 text-sm">Manage user roles, verifications, and access.</p>
+        </div>
+        <div className="relative w-full sm:w-72">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="search"
             placeholder="Search users..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
         </div>
       </div>
 
-      <div className="overflow-auto rounded-lg border border-gray-200 shadow max-h-[480px]">
-        <table className="min-w-full bg-white">
-          <thead className="bg-gray-50 sticky top-0">
-            <tr>
-              {[
-                "Username",
-                "Email",
-                "Role",
-                "Verified",
-                "Phone",
-                "Document",
-                "Actions",
-              ].map((head) => (
-                <th
-                  key={head}
-                  className="py-3 px-6 text-left text-sm font-semibold text-gray-700 border-b whitespace-nowrap"
-                >
-                  {head}
-                </th>
-              ))}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+              <th className="p-4 font-bold border-b border-gray-100">User</th>
+              <th className="p-4 font-bold border-b border-gray-100">Role</th>
+              <th className="p-4 font-bold border-b border-gray-100 text-center">Verified</th>
+              <th className="p-4 font-bold border-b border-gray-100">Contact</th>
+              <th className="p-4 font-bold border-b border-gray-100">Action</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredUsers.length ? (
+          <tbody className="divide-y divide-gray-50">
+            {filteredUsers.length > 0 ? (
               filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-6 border-b whitespace-nowrap">{u.username}</td>
-                  <td className="py-3 px-6 border-b whitespace-nowrap">{u.email}</td>
-                  <td className="py-3 px-6 border-b whitespace-nowrap capitalize">{u.role}</td>
-                  <td className="py-3 px-6 border-b text-center whitespace-nowrap">
+                <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                        {u.username[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{u.username}</p>
+                        <p className="text-gray-500 text-xs">{u.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm capitalize">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                        u.role === 'ARTISAN' ? 'bg-orange-100 text-orange-700' :
+                          u.role === 'RESEARCHER' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600'
+                      }`}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
                     {u.is_verified ? (
-                      <CheckCircleIcon className="w-6 h-6 text-green-500 mx-auto" />
+                      <FiCheckCircle className="w-5 h-5 text-green-500 mx-auto" />
                     ) : (
-                      <XCircleIcon className="w-6 h-6 text-red-500 mx-auto" />
+                      <FiXCircle className="w-5 h-5 text-gray-300 mx-auto" />
                     )}
                   </td>
-                  <td className="py-3 px-6 border-b whitespace-nowrap">
-                    {u.phone_number || "-"}
-                  </td>
-                  <td className="py-3 px-6 border-b whitespace-nowrap">
-                    {(u.artisan_verification_document || u.researcher_credentials) ? (
+                  <td className="p-4 text-sm text-gray-600">
+                    <p>{u.phone_number || "-"}</p>
+                    {(u.artisan_verification_document || u.researcher_credentials) && (
                       <a
                         href={u.artisan_verification_document || u.researcher_credentials}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline"
+                        className="flex items-center gap-1 text-indigo-600 hover:underline text-xs mt-1"
                       >
-                        View Doc
+                        <FiFileText /> View Doc
                       </a>
-                    ) : (
-                      "No Doc"
                     )}
                   </td>
-                  <td className="py-3 px-6 border-b whitespace-nowrap flex space-x-2">
-                    {!u.is_verified && (
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      {!u.is_verified && (
+                        <button
+                          onClick={() => handleVerifyUser(u.username)}
+                          className="bg-green-600 hover:bg-green-700 text-white p-1.5 rounded transition"
+                          title="Verify User"
+                        >
+                          <FiCheckCircle />
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleVerifyUser(u.username)}
-                        className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition"
+                        onClick={() => handleDeleteUser(u.username)}
+                        className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded transition"
+                        title="Delete User"
                       >
-                        Verify
+                        <FiTrash2 />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteUser(u.username)}
-                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
-                    >
-                      Delete
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td
-                  colSpan={7}
-                  className="text-center py-6 text-gray-500 font-semibold"
-                >
-                  No users found
+                <td colSpan={5} className="p-8 text-center text-gray-500 bg-gray-50/30">
+                  <div className="flex flex-col items-center justify-center">
+                    <FiSearch className="text-3xl mb-2 opacity-20" />
+                    <p>No users found matching "{search}"</p>
+                  </div>
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   );
 }

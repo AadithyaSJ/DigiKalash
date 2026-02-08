@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import API from "../api";
+import { FiUploadCloud, FiType, FiTag, FiDollarSign, FiBox, FiClipboard, FiImage } from "react-icons/fi";
 
 function AddProductForm({ authToken, onProductAdded }) {
   const [categories, setCategories] = useState([]);
   const [sites, setSites] = useState([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
-  const [loadingSites, setLoadingSites] = useState(true);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
   const [form, setForm] = useState({
     name: "",
     short_description: "",
@@ -24,42 +25,37 @@ function AddProductForm({ authToken, onProductAdded }) {
     available: true,
     is_active: true,
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    async function fetchFormOptions() {
+    async function fetchOptions() {
       try {
-        const catRes = await API.get("/marketplace/categories/");
+        const [catRes, siteRes] = await Promise.all([
+          API.get("/marketplace/categories/"),
+          API.get("/heritage/sites/")
+        ]);
         setCategories(catRes.data);
-      } catch {
-        setCategories([]);
-      }
-      setLoadingCategories(false);
-
-      try {
-        const siteRes = await API.get("/heritage/sites/");
         setSites(siteRes.data);
-      } catch {
-        setSites([]);
+      } catch (err) {
+        console.error("Failed to load options", err);
+      } finally {
+        setLoadingOptions(false);
       }
-      setLoadingSites(false);
     }
-    fetchFormOptions();
+    fetchOptions();
   }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
     if (type === "file") {
-      if (name === "images") {
-        setForm((prev) => ({ ...prev, images: files }));
-      } else {
-        setForm((prev) => ({ ...prev, [name]: files[0] }));
-      }
+      name === "images" ? setForm({ ...form, images: files }) : setForm({ ...form, [name]: files[0] });
     } else if (type === "checkbox") {
-      setForm((prev) => ({ ...prev, [name]: checked }));
+      setForm({ ...form, [name]: checked });
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm({ ...form, [name]: value });
     }
   };
 
@@ -69,291 +65,170 @@ function AddProductForm({ authToken, onProductAdded }) {
     setLoading(true);
 
     const data = new FormData();
-    for (const [key, value] of Object.entries(form)) {
-      if (key === "images" && value && value.length > 0) {
-        for (let i = 0; i < value.length; i++) {
-          data.append("images", value[i]);
-        }
-      } else if (value !== null && value !== undefined && value !== "") {
+    Object.entries(form).forEach(([key, value]) => {
+      if (key === "images" && value && value.length) {
+        Array.from(value).forEach(file => data.append("images", file));
+      } else if (value !== null && value !== "" && value !== undefined) {
         data.append(key, value);
       }
-    }
+    });
 
     API.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
 
     try {
-      const res = await API.post("/marketplace/products/", data);
-      onProductAdded();
+      await API.post("/marketplace/products/", data);
+      setSuccess(true);
+      if (onProductAdded) onProductAdded();
+      // Optional: Reset form here
     } catch (err) {
-      setError("Failed to add product. Please try again.");
-      console.error(err);
+      setError("Failed to add product. Please check all required fields.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loadingCategories || loadingSites)
-    return (
-      <p className="text-center text-gray-500 text-lg mt-10">Loading form data...</p>
-    );
+  if (loadingOptions) return <div className="text-center py-6 text-gray-500">Loading options...</div>;
+
+  if (success) return (
+    <div className="text-center py-10">
+      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-3xl mx-auto mb-4">
+        ✓
+      </div>
+      <h3 className="text-2xl font-bold text-gray-900 mb-2">Product Listed Successfully!</h3>
+      <p className="text-gray-600 mb-6">Your product is now pending review or live on the marketplace.</p>
+      <button
+        onClick={() => { setSuccess(false); setForm({ ...form, name: '' }); }}
+        className="text-indigo-600 font-bold hover:underline"
+      >
+        Add Another Product
+      </button>
+    </div>
+  );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data">
+    <form onSubmit={handleSubmit} className="space-y-8">
       {error && (
-        <p className="text-red-600 font-semibold text-center">{error}</p>
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded text-red-700 font-medium">
+          {error}
+        </div>
       )}
-      <div>
-        <label className="block font-medium mb-1" htmlFor="name">
-          Product Name *
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          value={form.name}
-          onChange={handleChange}
-          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
 
-      <div>
-        <label className="block font-medium mb-1" htmlFor="short_description">
-          Short Description
-        </label>
-        <input
-          id="short_description"
-          name="short_description"
-          type="text"
-          value={form.short_description}
-          onChange={handleChange}
-          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
-
-      <div>
-        <label className="block font-medium mb-1" htmlFor="description">
-          Detailed Description
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          rows="4"
-          value={form.description}
-          onChange={handleChange}
-          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        ></textarea>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block font-medium mb-1" htmlFor="sku">
-            SKU (optional)
-          </label>
-          <input
-            id="sku"
-            name="sku"
-            type="text"
-            value={form.sku}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+      {/* Basic Info */}
+      <section>
+        <h3 className="text-lg font-bold text-gray-900 border-b pb-2 mb-4 flex items-center gap-2">
+          <FiType className="text-indigo-600" /> Basic Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <label className="label">Product Name *</label>
+            <input name="name" type="text" required value={form.name} onChange={handleChange} className="input-field" placeholder="e.g., Handcrafted Clay Pot" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="label">Short Description</label>
+            <input name="short_description" type="text" value={form.short_description} onChange={handleChange} className="input-field" placeholder="Brief summary for listings..." />
+          </div>
+          <div className="md:col-span-2">
+            <label className="label">Detailed Description</label>
+            <textarea name="description" rows="4" value={form.description} onChange={handleChange} className="input-field" placeholder="Full details, materials, history..." />
+          </div>
         </div>
+      </section>
 
-        <div>
-          <label className="block font-medium mb-1" htmlFor="video_url">
-            Video URL (optional)
-          </label>
-          <input
-            id="video_url"
-            name="video_url"
-            type="url"
-            value={form.video_url}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+      {/* Pricing & Inventory */}
+      <section>
+        <h3 className="text-lg font-bold text-gray-900 border-b pb-2 mb-4 flex items-center gap-2">
+          <FiDollarSign className="text-indigo-600" /> Pricing & Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="label">Price (₹) *</label>
+            <input name="price" type="number" required step="0.01" value={form.price} onChange={handleChange} className="input-field" />
+          </div>
+          <div>
+            <label className="label">Inventory *</label>
+            <input name="inventory" type="number" required min="0" value={form.inventory} onChange={handleChange} className="input-field" />
+          </div>
+          <div>
+            <label className="label">Product Type *</label>
+            <select name="product_type" required value={form.product_type} onChange={handleChange} className="input-field">
+              <option value="physical">Physical Item</option>
+              <option value="digital">Digital Download</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Category *</label>
+            <select name="category" required value={form.category} onChange={handleChange} className="input-field">
+              <option value="">Select...</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Heritage Site *</label>
+            <select name="site" required value={form.site} onChange={handleChange} className="input-field">
+              <option value="">Select...</option>
+              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">SKU (Optional)</label>
+            <input name="sku" type="text" value={form.sku} onChange={handleChange} className="input-field" />
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block font-medium mb-1" htmlFor="price">
-            Price (₹) *
-          </label>
-          <input
-            id="price"
-            name="price"
-            required
-            type="number"
-            step="0.01"
-            value={form.price}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+      {/* Media */}
+      <section>
+        <h3 className="text-lg font-bold text-gray-900 border-b pb-2 mb-4 flex items-center gap-2">
+          <FiImage className="text-indigo-600" /> Media
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="label">Main Image</label>
+            <div className="flex items-center justify-center w-full">
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <FiUploadCloud className="text-3xl text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">Click to upload main image</p>
+                </div>
+                <input name="main_image" type="file" accept="image/*" onChange={handleChange} className="hidden" />
+              </label>
+            </div>
+          </div>
+          <div>
+            <label className="label">Gallery Images</label>
+            <input name="images" type="file" accept="image/*" multiple onChange={handleChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+          </div>
+          {form.product_type === 'digital' && (
+            <div>
+              <label className="label">Digital File</label>
+              <input name="digital_file" type="file" onChange={handleChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+            </div>
+          )}
         </div>
+      </section>
 
-        <div>
-          <label className="block font-medium mb-1" htmlFor="inventory">
-            Inventory *
+      {/* Settings */}
+      <div className="flex gap-6 pt-4">
+        {['featured', 'available', 'is_active'].map(field => (
+          <label key={field} className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" name={field} checked={form[field]} onChange={handleChange} className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500" />
+            <span className="capitalize text-gray-700 font-medium">{field.replace('_', ' ')}</span>
           </label>
-          <input
-            id="inventory"
-            name="inventory"
-            required
-            type="number"
-            min="0"
-            value={form.inventory}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium mb-1" htmlFor="product_type">
-            Product Type *
-          </label>
-          <select
-            id="product_type"
-            name="product_type"
-            required
-            value={form.product_type}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="physical">Physical</option>
-            <option value="digital">Digital</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block font-medium mb-1" htmlFor="category">
-            Category *
-          </label>
-          <select
-            id="category"
-            name="category"
-            required
-            value={form.category}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select Category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-medium mb-1" htmlFor="site">
-            Heritage Site *
-          </label>
-          <select
-            id="site"
-            name="site"
-            required
-            value={form.site}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select Heritage Site</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="block font-medium mb-1" htmlFor="main_image">
-          Main Image
-        </label>
-        <input
-          id="main_image"
-          name="main_image"
-          type="file"
-          accept="image/*"
-          onChange={handleChange}
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="block font-medium mb-1" htmlFor="images">
-          Additional Images
-        </label>
-        <input
-          id="images"
-          name="images"
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleChange}
-          className="w-full"
-        />
-      </div>
-
-      <div>
-        <label className="block font-medium mb-1" htmlFor="digital_file">
-          Digital File
-        </label>
-        <input
-          id="digital_file"
-          name="digital_file"
-          type="file"
-          onChange={handleChange}
-          className="w-full"
-        />
-      </div>
-
-      <div className="flex items-center space-x-6 my-6">
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name="featured"
-            checked={form.featured}
-            onChange={handleChange}
-            className="form-checkbox"
-          />
-          <span>Featured</span>
-        </label>
-
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name="available"
-            checked={form.available}
-            onChange={handleChange}
-            className="form-checkbox"
-          />
-          <span>Available</span>
-        </label>
-
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name="is_active"
-            checked={form.is_active}
-            onChange={handleChange}
-            className="form-checkbox"
-          />
-          <span>Active</span>
-        </label>
+        ))}
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-4 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition"
+        className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition-all disabled:opacity-70 disabled:hover:translate-y-0"
       >
-        {loading ? "Submitting..." : "Submit Product"}
+        {loading ? "Submitting Product..." : "Submit Product"}
       </button>
+
+      <style jsx>{`
+        .label { @apply block text-sm font-bold text-gray-700 mb-1; }
+        .input-field { @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white; }
+      `}</style>
     </form>
   );
 }

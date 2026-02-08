@@ -7,8 +7,8 @@ import ImpactNumbers from "../components/ImpactNumbers";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <main>
+    <div className="min-h-screen flex flex-col bg-white">
+      <main className="flex-grow">
         <HeroSection />
         <FeaturedSites />
         <UpcomingEvents />

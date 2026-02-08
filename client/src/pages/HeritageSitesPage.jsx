@@ -1,240 +1,200 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FiBookmark, FiShare2, FiMapPin, FiFilter } from "react-icons/fi";
-import { FaStar } from "react-icons/fa";
+import { FiSearch, FiFilter, FiX } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import API from "../api";
+import FeaturedSiteCard from "../components/FeaturedSiteCard";
 
-const STATE_OPTIONS = ["All States", "Karnataka", "Rajasthan", "Odisha", "Tamil Nadu"];
-const ERA_OPTIONS = ["All Eras", "Medieval", "Ancient", "Modern"];
-const CATEGORY_OPTIONS = ["All Categories", "Palace", "Temple", "Fort", "Site", "Monument"];
+const STATE_OPTIONS = ["All States", "Karnataka", "Rajasthan", "Odisha", "Tamil Nadu", "Maharashtra", "Kerala"];
+const ERA_OPTIONS = ["All Eras", "Medieval", "Ancient", "Modern", "Colonial"];
+const CATEGORY_OPTIONS = ["All Categories", "Palace", "Temple", "Fort", "Monument", "Museum", "Archaeological Site"];
 
 function HeritageSitesPage() {
   const [sites, setSites] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("name");
-  const [view, setView] = useState("grid");
   const [showFilters, setShowFilters] = useState(false);
 
   // Filters
-  const [filterState, setFilterState] = useState("All States");
-  const [filterEra, setFilterEra] = useState("All Eras");
-  const [filterCategory, setFilterCategory] = useState("All Categories");
-  const [filterUnesco, setFilterUnesco] = useState(false);
-  const [filterAccessible, setFilterAccessible] = useState(false);
-  const [filterVerified, setFilterVerified] = useState(false);
+  const [filters, setFilters] = useState({
+    state: "All States",
+    era: "All Eras",
+    category: "All Categories",
+    unesco: false,
+    accessible: false,
+    verified: false
+  });
 
   useEffect(() => {
-    API.get("/heritage/sites/").then((res) => setSites(res.data));
+    API.get("/heritage/sites/")
+      .then((res) => setSites(res.data))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
-  function clearFilters() {
-    setFilterState("All States");
-    setFilterEra("All Eras");
-    setFilterCategory("All Categories");
-    setFilterUnesco(false);
-    setFilterAccessible(false);
-    setFilterVerified(false);
-  }
+  const clearFilters = () => {
+    setFilters({
+      state: "All States",
+      era: "All Eras",
+      category: "All Categories",
+      unesco: false,
+      accessible: false,
+      verified: false
+    });
+  };
 
-  // Filtering logic
-  const filteredSites = sites
-    .filter(site => 
-      (!search ||
-        site.name.toLowerCase().includes(search.toLowerCase()) ||
-        (site.city && site.city.toLowerCase().includes(search.toLowerCase())) ||
-        (site.state && site.state.toLowerCase().includes(search.toLowerCase())) ||
-        (site.description && site.description.toLowerCase().includes(search.toLowerCase()))
-      ) &&
-      (filterState === "All States" || site.state === filterState) &&
-      (filterEra === "All Eras" || (site.era && site.era === filterEra)) &&
-      (filterCategory === "All Categories" || (site.site_type && site.site_type === filterCategory)) &&
-      (!filterUnesco || site.is_unesco) &&
-      (!filterAccessible || site.is_accessible) &&
-      (!filterVerified || site.is_verified)
-    )
-    .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : 0);
+  const updateFilter = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const filteredSites = sites.filter(site => {
+    const matchesSearch = !search ||
+      site.name.toLowerCase().includes(search.toLowerCase()) ||
+      (site.city && site.city.toLowerCase().includes(search.toLowerCase())) ||
+      (site.state && site.state.toLowerCase().includes(search.toLowerCase()));
+
+    const matchesState = filters.state === "All States" || site.state === filters.state;
+    const matchesEra = filters.era === "All Eras" || (site.era && site.era === filters.era);
+    const matchesCategory = filters.category === "All Categories" || (site.site_type && site.site_type === filters.category);
+    const matchesUnesco = !filters.unesco || site.is_unesco;
+    const matchesAccessible = !filters.accessible || site.is_accessible;
+    const matchesVerified = !filters.verified || site.is_verified;
+
+    return matchesSearch && matchesState && matchesEra && matchesCategory && matchesUnesco && matchesAccessible && matchesVerified;
+  });
 
   return (
-    <div className="w-full px-10 py-8 max-w-7xl mx-auto">
-      {/* Top Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        {/* Search */}
-        <div className="flex items-center gap-2 flex-grow max-w-lg">
-          <input
-            type="text"
-            placeholder="Search sites by name, location, or description..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 w-full rounded-xl border border-gray-300 focus:ring-2 focus:ring-black shadow-sm bg-white"
-          />
-          <button
-            className={`px-4 py-2 flex items-center gap-2 rounded-xl bg-white border border-gray-300 hover:bg-gray-100 shadow-sm transition${showFilters ? " ring-2 ring-black" : ""}`}
-            onClick={() => setShowFilters((prev) => !prev)}
-          >
-            <FiFilter />
-            <span className="hidden sm:inline text-sm font-medium">Filters</span>
-          </button>
-        </div>
-        {/* Sort */}
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-600">
-            {filteredSites.length} sites found
-          </div>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-gray-300 bg-white shadow-sm text-gray-700 text-sm font-medium"
-          >
-            <option value="name">Sort by Name</option>
-          </select>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+      <div className="max-w-7xl mx-auto px-6">
 
-      {/* Filter Panel */}
-      {showFilters && (
-        <div className="w-full bg-white border border-gray-200 rounded-xl px-6 py-4 mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 items-center">
-          {/* State */}
-          <div>
-            <label className="block text-md font-semibold mb-1">State</label>
-            <select
-              value={filterState}
-              onChange={e => setFilterState(e.target.value)}
-              className="w-full px-4 py-2 rounded bg-gray-50 border border-gray-200"
-            >
-              {STATE_OPTIONS.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          </div>
-          {/* Era */}
-          <div>
-            <label className="block text-md font-semibold mb-1">Era</label>
-            <select
-              value={filterEra}
-              onChange={e => setFilterEra(e.target.value)}
-              className="w-full px-4 py-2 rounded bg-gray-50 border border-gray-200"
-            >
-              {ERA_OPTIONS.map(era => (
-                <option key={era} value={era}>{era}</option>
-              ))}
-            </select>
-          </div>
-          {/* Category */}
-          <div>
-            <label className="block text-md font-semibold mb-1">Category</label>
-            <select
-              value={filterCategory}
-              onChange={e => setFilterCategory(e.target.value)}
-              className="w-full px-4 py-2 rounded bg-gray-50 border border-gray-200"
-            >
-              {CATEGORY_OPTIONS.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          {/* Special Filters */}
-          <div>
-            <label className="block text-md font-semibold mb-2">Special Filters</label>
-            <div className="mb-1">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={filterUnesco}
-                  onChange={e => setFilterUnesco(e.target.checked)}
-                  className="accent-blue-700"
-                />
-                UNESCO Sites Only
-              </label>
-            </div>
-            <div className="mb-1">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={filterAccessible}
-                  onChange={e => setFilterAccessible(e.target.checked)}
-                  className="accent-gray-700"
-                />
-                Accessible
-              </label>
-            </div>
-            <div className="mb-1">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={filterVerified}
-                  onChange={e => setFilterVerified(e.target.checked)}
-                  className="accent-green-700"
-                />
-                Verified Only
-              </label>
-            </div>
+        {/* Header & Search */}
+        <div className="mb-10 text-center">
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
+            Explore Heritage Sites
+          </h1>
+          <p className="text-gray-600 max-w-2xl mx-auto mb-8">
+            Discover the architectural marvels and historical treasures of India.
+          </p>
+
+          <div className="relative max-w-2xl mx-auto flex items-center">
+            <FiSearch className="absolute left-4 text-gray-400 text-xl" />
+            <input
+              type="text"
+              placeholder="Search by name, city, or state..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 rounded-2xl border-none shadow-lg shadow-gray-200/50 focus:ring-2 focus:ring-indigo-500 outline-none text-lg"
+            />
             <button
-              className="mt-3 px-4 py-2 text-black rounded-xl border bg-gray-100 hover:bg-gray-200 transition font-semibold"
-              onClick={clearFilters}
+              onClick={() => setShowFilters(!showFilters)}
+              className={`absolute right-2 px-4 py-2 rounded-xl flex items-center gap-2 font-medium transition-colors ${showFilters ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
             >
-              Clear Filters
+              <FiFilter />
+              <span className="hidden sm:inline">Filters</span>
             </button>
           </div>
         </div>
-      )}
 
-      {/* Grid View */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {filteredSites.map(site => (
-          <div
-            key={site.id}
-            className="bg-white rounded-2xl shadow-sm hover:shadow-md border border-gray-100 transition flex flex-col overflow-hidden"
-          >
-            <div className="relative">
-              <img
-                src={site.image || "/default-sites.jpg"}
-                alt={site.name}
-                className="h-48 w-full object-cover"
-              />
-              {/* Bookmark icon */}
-              <div className="absolute top-3 left-3">
-                <FiBookmark className="text-gray-700 opacity-70" />
-              </div>
-              {/* Rating */}
-              {site.rating && (
-                <div className="absolute top-3 right-3 flex items-center bg-white px-2 py-0.5 rounded-md shadow">
-                  <FaStar className="text-yellow-500 mr-1" /> 
-                  <span className="font-bold text-gray-700 text-sm">{site.rating.toFixed(1)}</span>
+        {/* Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-8"
+            >
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-gray-900">Filter Options</h3>
+                  <button onClick={clearFilters} className="text-sm text-indigo-600 font-semibold hover:underline">
+                    Reset All
+                  </button>
                 </div>
-              )}
-            </div>
-            <div className="p-5 flex flex-col flex-grow">
-              <h3 className="font-bold text-lg mb-1">{site.name}</h3>
-              <p className="text-gray-500 text-sm flex items-center mb-2">
-                <FiMapPin className="mr-1" />
-                {site.city && site.state
-                  ? `${site.city}, ${site.state}`
-                  : site.city
-                  ? site.city
-                  : site.state
-                  ? site.state
-                  : ""}
-              </p>
-              <p className="text-gray-600 text-sm line-clamp-2 mb-3">{site.description}</p>
-              {/* Site Type Chip */}
-              <div className="inline-block mb-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-semibold text-gray-700">
-                {site.site_type}
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">State</label>
+                    <select
+                      value={filters.state}
+                      onChange={(e) => updateFilter("state", e.target.value)}
+                      className="w-full p-2 rounded-lg border border-gray-200 focus:border-indigo-500 outline-none"
+                    >
+                      {STATE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Category</label>
+                    <select
+                      value={filters.category}
+                      onChange={(e) => updateFilter("category", e.target.value)}
+                      className="w-full p-2 rounded-lg border border-gray-200 focus:border-indigo-500 outline-none"
+                    >
+                      {CATEGORY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Era</label>
+                    <select
+                      value={filters.era}
+                      onChange={(e) => updateFilter("era", e.target.value)}
+                      className="w-full p-2 rounded-lg border border-gray-200 focus:border-indigo-500 outline-none"
+                    >
+                      {ERA_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Features</label>
+                    <div className="space-y-2">
+                      {[
+                        { key: "unesco", label: "UNESCO World Heritage" },
+                        { key: "accessible", label: "Accessible" },
+                        { key: "verified", label: "Verified Only" }
+                      ].map((feature) => (
+                        <label key={feature.key} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filters[feature.key]}
+                            onChange={(e) => updateFilter(feature.key, e.target.checked)}
+                            className="rounded text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-700">{feature.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-              {/* CTA */}
-              <Link
-                to={`/sites/${site.id}`}
-                className="bg-black text-white w-full py-2 rounded-xl font-medium text-center hover:bg-gray-900 transition"
-              >
-                View Details
-              </Link>
-              {/* Footer */}
-              <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
-                <span>{site.upcoming_events} upcoming events</span>
-                <FiShare2 className="text-base cursor-pointer hover:text-black" />
-              </div>
-            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Results */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="bg-white h-96 rounded-2xl animate-pulse shadow-sm" />
+            ))}
           </div>
-        ))}
+        ) : filteredSites.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredSites.map(site => (
+              <FeaturedSiteCard key={site.id} site={site} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            <div className="inline-block p-4 rounded-full bg-gray-100 text-gray-400 mb-4 text-4xl">
+              <FiSearch />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">No sites found</h3>
+            <p className="text-gray-500 mt-2">Try adjusting your search or filters.</p>
+            <button onClick={clearFilters} className="mt-4 text-indigo-600 font-semibold hover:underline">
+              Clear all filters
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
