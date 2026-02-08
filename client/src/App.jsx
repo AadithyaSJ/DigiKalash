@@ -4,7 +4,7 @@ import { CartProvider } from './context/CartContext';
 import { Toaster } from 'react-hot-toast';
 import Register from './pages/Register';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/dashboard';
 import HeritageSitesPage from "./pages/HeritageSitesPage";
 import HeritageEventsPage from "./pages/HeritageEventsPage";
 import HomePage from './pages/Home';
